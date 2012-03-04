@@ -28,6 +28,8 @@
     this.sorter = this.options.sorter || this.sorter
     this.highlighter = this.options.highlighter || this.highlighter
     this.$menu = $(this.options.menu).appendTo('body')
+	this.remoteuri = this.options.remoteuri
+	this.remotexhr = null
     this.shown = false
     this.objectSource = true
     if (this.options.source.length > 0 && typeof this.options.source[0] != 'object') {
@@ -81,7 +83,32 @@
         return this.shown ? this.hide() : this
       }
 
-      items = $.grep(this.source, function (item) {
+	  if (this.remoteuri) {
+		if (this.remotexhr) this.remotexhr.abort()
+		this.remotexhr = $.get(this.remoteuri, {max:this.options.items, q:this.query}, null, 'json')
+			.success($.proxy(this.processItems, this))
+	  }
+	  else
+		return this.processItems($.grep(this.source, function (item) {
+			if (that.matcher(item)) return item
+		}))
+
+	  return this
+
+	}
+
+  , processItems: function(items) {
+
+		var that = this;
+
+		if(items > 0 && typeof items[0] != 'object') {
+	      this.objectSource = false
+	      items = this.normalizeItems(items)
+	    };
+
+	  items = this.sorter(items)
+
+      items = $.grep(items, function (item) {
         if (that.matcher(that.objectSource ? item : item.label)) return item
       })
 
@@ -242,6 +269,7 @@
     }
 
   , normalizeItems: function(items) {
+		this.objectSource = true;
       return $.makeArray($(items).map(function (i, item) {
         return { label: item, value: item }
       }))
